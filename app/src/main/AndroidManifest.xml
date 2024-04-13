@@ -8,7 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <application android:label="@string/app_name" android:icon="@drawable/ic_launcher_foreground">
+    <application android:label="@string/app_name" android:icon="@drawable/ic_launcher_foreground"
+        android:theme="@style/Theme.Historia">
         <activity
             android:name="net.festinger.historia.MainActivity" android:configChanges="orientation"
             android:exported="true">

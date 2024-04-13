@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Historia</string>
+    <string name="log_to_calendar">Log to Calendar</string>
+    <string name="type">Type</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
