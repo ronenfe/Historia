@@ -46,13 +46,16 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                     1
                 )
             }
+            val bundle = Bundle().apply {
+                putInt(android.content.ContentResolver.QUERY_ARG_LIMIT, 1)
+                putInt(android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER , android.content.ContentResolver.QUERY_SORT_DIRECTION_DESCENDING)
+                putString(android.content.ContentResolver.QUERY_ARG_SORT_COLUMNS, "date")
+            }
+
             val logs = context.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
                 strFields,
-                null,
-                null,
-                "date DESC limit 1;"
-            )
+                bundle, null)
             val numberIndex = logs!!.getColumnIndex("number")
             val nameIndex = logs.getColumnIndex("name")
             val typeIndex = logs.getColumnIndex("type")

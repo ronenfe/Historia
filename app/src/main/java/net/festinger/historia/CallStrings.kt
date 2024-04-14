@@ -61,13 +61,13 @@ class CallStrings {
         }
         strArr4[3] = stringBuilder.append(str2).toString()
         strings[6] = java.lang.Long.toString(time)
-        val geocoder = Geocoder(context, Locale.getDefault())
+        val geocoder = context?.let { Geocoder(it, Locale.getDefault()) }
         var loc = "Not Available"
         if (location != null) {
             try {
-                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                val addresses = geocoder?.getFromLocation(location.latitude, location.longitude, 1)
                 val loc2 =
-                    (if (addresses[0].getAddressLine(0) == null) "" else addresses[0].getAddressLine(
+                    (if (addresses!![0].getAddressLine(0) == null) "" else addresses[0].getAddressLine(
                         0
                     ) + ", ") + if (addresses[0].locality == null) "" else addresses[0].locality + ", " + if (addresses[0].adminArea == null) "" else addresses[0].adminArea + ", " + if (addresses[0].countryName == null) "" else addresses[0].countryName + ", " + if (addresses[0].postalCode == null) "" else addresses[0].postalCode + ", "
                 var i = loc2.length - 1

@@ -18,12 +18,12 @@ class HistoriaService : Service() {
     // android.app.Service
     override fun onCreate() {
         super.onCreate()
- //       getApplicationContext<Context>().contentResolver
-//            .registerContentObserver(
-//                CallLog.Calls.CONTENT_URI,
-//                true,
-//                CallLogContentObserver(Handler(), ApplicationProvider.getApplicationContext())
-//            )
+        this.contentResolver
+            .registerContentObserver(
+                CallLog.Calls.CONTENT_URI,
+                true,
+                CallLogContentObserver(Handler(), this)
+            )
     }
 
     // android.app.Service
