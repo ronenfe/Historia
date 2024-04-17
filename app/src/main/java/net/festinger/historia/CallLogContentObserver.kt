@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.preference.PreferenceManager
+import android.provider.CalendarContract
 import android.provider.CallLog
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.common.ConnectionResult
@@ -34,7 +35,7 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
         @SuppressLint("MissingPermission")
         get() {
             val callStrings: CallStrings?
-            val strFields = arrayOf("number", "type", "name", "date", "duration", "type")
+            val strFields = arrayOf( CallLog.Calls.NUMBER, CallLog.Calls.TYPE,  CallLog.Calls.CACHED_NAME,  CallLog.Calls.DATE,  CallLog.Calls.DURATION,  CallLog.Calls.TYPE)
             if (ActivityCompat.checkSelfPermission(
                     context,
                     "android.permission.READ_CALL_LOG"
@@ -46,21 +47,19 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                     1
                 )
             }
-            val bundle = Bundle().apply {
-                putInt(android.content.ContentResolver.QUERY_ARG_LIMIT, 1)
-                putInt(android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER , android.content.ContentResolver.QUERY_SORT_DIRECTION_DESCENDING)
-                putString(android.content.ContentResolver.QUERY_ARG_SORT_COLUMNS, "date")
-            }
-
             val logs = context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
+                CallLog.Calls.CONTENT_URI.buildUpon().appendQueryParameter(CallLog.Calls.LIMIT_PARAM_KEY, "1")
+                    .build(),
                 strFields,
-                bundle, null)
-            val numberIndex = logs!!.getColumnIndex("number")
-            val nameIndex = logs.getColumnIndex("name")
-            val typeIndex = logs.getColumnIndex("type")
-            val dateIndex = logs.getColumnIndex("date")
-            val durationIndex = logs.getColumnIndex("duration")
+                null,
+                null,
+                "date DESC"
+            )
+            val numberIndex = logs!!.getColumnIndex( CallLog.Calls.NUMBER)
+            val nameIndex = logs.getColumnIndex( CallLog.Calls.CACHED_NAME)
+            val typeIndex = logs.getColumnIndex( CallLog.Calls.TYPE)
+            val dateIndex = logs.getColumnIndex( CallLog.Calls.DATE)
+            val durationIndex = logs.getColumnIndex( CallLog.Calls.DURATION)
             if (logs.moveToNext()) {
                 if (ActivityCompat.checkSelfPermission(
                         context,
@@ -108,22 +107,22 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
         try {
             var _id = "-1"
             val cursor = context.contentResolver.query(
-                Uri.parse("content://com.android.calendar/calendars"),
-                arrayOf("_id", "account_name", "calendar_displayName", "ownerAccount"),
+                CalendarContract.Events.CONTENT_URI,
+                arrayOf(CalendarContract.Events.CALENDAR_ID, CalendarContract.Events.ACCOUNT_NAME, CalendarContract.Events.CALENDAR_DISPLAY_NAME, CalendarContract.Events.OWNER_ACCOUNT),
                 null,
                 null,
                 null
             )
             while (cursor!!.moveToNext()) {
                 _id = cursor.getString(0)
-                cursor.getString(1)
                 if (cursor.getString(2) != "0") {
                     break
                 }
             }
+            cursor.close()
             if (_id.compareTo("-1") != 0) {
                 val eventValues = ContentValues()
-                eventValues.put("calendar_id", Integer.valueOf(_id.toInt()))
+                eventValues.put(CalendarContract.Events.CALENDAR_ID, Integer.valueOf(_id.toInt()))
                 var addString: String = callStrings.strings[4].toString() + " call "
                 if (callStrings.strings[4] == "Outgoing" && callStrings.strings[3].equals("00:00")
                 ) {
@@ -133,26 +132,27 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                 if (callStrings.strings[1] != "Unknown") {
                     addString2 = addString2 + callStrings.strings[1].toString() + ", "
                 }
-                eventValues.put("title", addString2 + callStrings.strings[0])
+                eventValues.put(CalendarContract.Events.TITLE, addString2 + callStrings.strings[0])
                 if (callStrings.strings[5] != "Not Available") {
-                    eventValues.put("eventLocation", callStrings.strings[5])
+                    eventValues.put(CalendarContract.Events.EVENT_LOCATION, callStrings.strings[5])
                 }
-                eventValues.put("description", "Duration: " + callStrings.strings[3])
+                eventValues.put(CalendarContract.Events.DESCRIPTION, "Duration: " + callStrings.strings[3])
                 eventValues.put(
-                    "dtstart",
+                    CalendarContract.Events.DTSTART,
                     callStrings.strings[6]?.toLong() ?:  0
                 )
                 eventValues.put(
-                    "dtend",
+                    CalendarContract.Events.DTEND,
                         (callStrings.strings[6]?.toLong() ?: 0) + callStrings.duration * 1000
                 )
-                eventValues.put("eventTimezone", TimeZone.getDefault().id)
+                eventValues.put(CalendarContract.Events.EVENT_TIMEZONE, CalendarContract.Calendars.CALENDAR_TIME_ZONE)
+
                 context.contentResolver.insert(
-                    Uri.parse("content://com.android.calendar/events"),
+                    CalendarContract.Events.CONTENT_URI,
                     eventValues
                 )
             }
-            cursor.close()
+
         } catch (e: Exception) {
             throw e
         }
