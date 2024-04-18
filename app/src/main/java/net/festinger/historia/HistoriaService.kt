@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.CallLog
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.ApplicationProvider.*
@@ -21,8 +22,8 @@ class HistoriaService : Service() {
         this.contentResolver
             .registerContentObserver(
                 CallLog.Calls.CONTENT_URI,
-                true,
-                CallLogContentObserver(Handler(), this)
+                false,
+                CallLogContentObserver(Handler(Looper.getMainLooper()), this)
             )
     }
 

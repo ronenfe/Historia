@@ -18,23 +18,21 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationServices.FusedLocationApi
+import java.time.LocalTime
 import java.util.*
 
 internal class CallLogContentObserver(h: Handler?, private val context: Context) :
     ContentObserver(h) {
-    private var lastCallStringSN = ""
     private var mLastLocation: Location? = null
-    private lateinit var mFusedLocationClient: FusedLocationProviderClient
+    private var mFusedLocationClient: FusedLocationProviderClient
     private var mContext = context
     // android.database.ContentObserver
     override fun deliverSelfNotifications(): Boolean {
         return true
     }
-
-    val lastCall: CallStrings?
-        @SuppressLint("MissingPermission")
-        get() {
-            val callStrings: CallStrings?
+    @SuppressLint("MissingPermission")
+    fun getCall(): Call?{
+            val call: Call?
             val strFields = arrayOf( CallLog.Calls.NUMBER, CallLog.Calls.TYPE,  CallLog.Calls.CACHED_NAME,  CallLog.Calls.DATE,  CallLog.Calls.DURATION,  CallLog.Calls.TYPE)
             if (ActivityCompat.checkSelfPermission(
                     context,
@@ -87,63 +85,67 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                     .addOnSuccessListener { location : Location? ->
                         mLastLocation = location
                     }
-                callStrings = CallStrings(
+                call = Call(
                     logs.getString(numberIndex),
                     logs.getString(nameIndex),
                     logs.getLong(dateIndex),
-                    logs.getString(durationIndex),
+                    logs.getLong(durationIndex),
                     logs.getInt(typeIndex),
                     mLastLocation,
                     context
                 )
             } else {
-                callStrings = null
+                call = null
             }
             logs.close()
-            return callStrings
+            return call
         }
 
-    fun addCalendarEvent(callStrings: CallStrings) {
+    fun addCalendarEvent(call: Call) {
         try {
-            var _id = "-1"
+            var _id = -1
             val cursor = context.contentResolver.query(
-                CalendarContract.Events.CONTENT_URI,
-                arrayOf(CalendarContract.Events.CALENDAR_ID, CalendarContract.Events.ACCOUNT_NAME, CalendarContract.Events.CALENDAR_DISPLAY_NAME, CalendarContract.Events.OWNER_ACCOUNT),
+                CalendarContract.Calendars.CONTENT_URI,
+                arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.ACCOUNT_NAME, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.OWNER_ACCOUNT),
                 null,
                 null,
                 null
             )
-            while (cursor!!.moveToNext()) {
-                _id = cursor.getString(0)
-                if (cursor.getString(2) != "0") {
-                    break
+            val idIndex = cursor?.getColumnIndex(CalendarContract.Calendars._ID)
+            val displayNameIndex = cursor?.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    _id = idIndex?.let { cursor.getInt(it) }!!
+                    if (displayNameIndex?.let { cursor.getString(it) } != "0") {
+                        break
+                    }
                 }
+                cursor.close()
             }
-            cursor.close()
-            if (_id.compareTo("-1") != 0) {
+            if (_id != -1) {
                 val eventValues = ContentValues()
-                eventValues.put(CalendarContract.Events.CALENDAR_ID, Integer.valueOf(_id.toInt()))
-                var addString: String = callStrings.strings[4].toString() + " call "
-                if (callStrings.strings[4] == "Outgoing" && callStrings.strings[3].equals("00:00")
-                ) {
-                    addString = "Unanswered call "
+                eventValues.put(CalendarContract.Events.CALENDAR_ID, _id)
+                var text: String = call.type.toString() + " call "
+                if (call.type == Call.Types.Outgoing && call.duration == 0L)
+                {
+                    text = "Unanswered call "
                 }
-                var addString2 = addString + if (callStrings.strings[4] == "Outgoing") "to: " else "from: "
-                if (callStrings.strings[1] != "Unknown") {
-                    addString2 = addString2 + callStrings.strings[1].toString() + ", "
+                text += if (call.type == Call.Types.Outgoing) "to: " else "from: "
+                if (call.name != "Unknown") {
+                    text = text + call.name + ", "
                 }
-                eventValues.put(CalendarContract.Events.TITLE, addString2 + callStrings.strings[0])
-                if (callStrings.strings[5] != "Not Available") {
-                    eventValues.put(CalendarContract.Events.EVENT_LOCATION, callStrings.strings[5])
+                eventValues.put(CalendarContract.Events.TITLE, text + call.number)
+                if (call.location != "Not Available") {
+                    eventValues.put(CalendarContract.Events.EVENT_LOCATION, call.location)
                 }
-                eventValues.put(CalendarContract.Events.DESCRIPTION, "Duration: " + callStrings.strings[3])
+                eventValues.put(CalendarContract.Events.DESCRIPTION, "Duration: " + LocalTime.ofSecondOfDay(call.duration))
                 eventValues.put(
                     CalendarContract.Events.DTSTART,
-                    callStrings.strings[6]?.toLong() ?:  0
+                    call.time
                 )
                 eventValues.put(
                     CalendarContract.Events.DTEND,
-                        (callStrings.strings[6]?.toLong() ?: 0) + callStrings.duration * 1000
+                        call.time + call.duration * 1000
                 )
                 eventValues.put(CalendarContract.Events.EVENT_TIMEZONE, CalendarContract.Calendars.CALENDAR_TIME_ZONE)
 
@@ -158,16 +160,13 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
         }
     }
 
-    // android.database.ContentObserver
     override fun onChange(selfChange: Boolean) {
-        var callStrings: CallStrings
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(context)
         val isLogEnabled = sharedPref.getBoolean("switch_preference_1", true)
         if (isLogEnabled){
-            callStrings = lastCall!!
-            if (callStrings != null && callStrings.strings[6] != this.lastCallStringSN ) {
-                this.lastCallStringSN = callStrings.strings[6]!!;
-                addCalendarEvent(callStrings);
+            var call = getCall()
+            if (call != null) {
+                addCalendarEvent(call);
             }
         }
     }
