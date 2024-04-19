@@ -7,8 +7,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.ContentObserver
 import android.location.Location
-import android.net.Uri
-import android.os.Bundle
 import android.os.Handler
 import android.preference.PreferenceManager
 import android.provider.CalendarContract
@@ -17,15 +15,17 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationServices.FusedLocationApi
 import java.time.LocalTime
-import java.util.*
+import java.util.TimeZone
 
 internal class CallLogContentObserver(h: Handler?, private val context: Context) :
     ContentObserver(h) {
     private var mLastLocation: Location? = null
     private var mFusedLocationClient: FusedLocationProviderClient
     private var mContext = context
+    private var lastTimeofCall = 0L
+    private var lastTimeofUpdate = 0L
+    private var threshold_time: Long = 1000
     // android.database.ContentObserver
     override fun deliverSelfNotifications(): Boolean {
         return true
@@ -107,9 +107,9 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
             val cursor = context.contentResolver.query(
                 CalendarContract.Calendars.CONTENT_URI,
                 arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.ACCOUNT_NAME, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.OWNER_ACCOUNT),
+                CalendarContract.Calendars.VISIBLE + " = 1 AND " + CalendarContract.Calendars.IS_PRIMARY + "=1",
                 null,
-                null,
-                null
+                CalendarContract.Calendars._ID + " ASC"
             )
             val idIndex = cursor?.getColumnIndex(CalendarContract.Calendars._ID)
             val displayNameIndex = cursor?.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
@@ -131,7 +131,7 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                     text = "Unanswered call "
                 }
                 text += if (call.type == Call.Types.Outgoing) "to: " else "from: "
-                if (call.name != "Unknown") {
+                if (call.name.isEmpty() == false) {
                     text = text + call.name + ", "
                 }
                 eventValues.put(CalendarContract.Events.TITLE, text + call.number)
@@ -147,7 +147,7 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
                     CalendarContract.Events.DTEND,
                         call.time + call.duration * 1000
                 )
-                eventValues.put(CalendarContract.Events.EVENT_TIMEZONE, CalendarContract.Calendars.CALENDAR_TIME_ZONE)
+                eventValues.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
 
                 context.contentResolver.insert(
                     CalendarContract.Events.CONTENT_URI,
@@ -161,13 +161,15 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
     }
 
     override fun onChange(selfChange: Boolean) {
+        lastTimeofCall = System.currentTimeMillis();
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(context)
         val isLogEnabled = sharedPref.getBoolean("switch_preference_1", true)
-        if (isLogEnabled){
+        if (isLogEnabled && lastTimeofCall  > lastTimeofUpdate + threshold_time){
             var call = getCall()
             if (call != null) {
                 addCalendarEvent(call);
             }
+            lastTimeofUpdate = System.currentTimeMillis();
         }
     }
 
