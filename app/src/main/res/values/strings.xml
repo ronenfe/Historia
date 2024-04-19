@@ -4,4 +4,5 @@
     <string name="type">Type</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="permissions_rationale">This app need this permission to be able to read from the call log and write to the calendar.</string>
 </resources>

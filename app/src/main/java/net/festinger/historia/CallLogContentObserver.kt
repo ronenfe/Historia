@@ -25,7 +25,7 @@ internal class CallLogContentObserver(h: Handler?, private val context: Context)
     private var mContext = context
     private var lastTimeofCall = 0L
     private var lastTimeofUpdate = 0L
-    private var threshold_time: Long = 1000
+    private var threshold_time: Long = 3000
     // android.database.ContentObserver
     override fun deliverSelfNotifications(): Boolean {
         return true
